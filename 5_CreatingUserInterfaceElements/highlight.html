@@ -1,0 +1,241 @@
+<html>
+	<head>
+		<title>Highlighting</title>
+		<style>
+		
+		.tooltip-container {
+			position: absolute;
+			pointer-events: none;
+			padding: 2px 4px 2px 6px;
+			background-color: #eee;
+			border: solid 1px #aaa;
+		}
+
+		.tooltip-title {
+			text-align: center;
+			font-size: 12px;
+			font-weight: bold;
+			line-height: 1em;
+		}
+
+		.tooltip-content {
+			font-size: 11px;
+		}
+
+		</style>
+	</head>
+	<body>
+		
+		<div id="chart"></div>
+
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+		<script type="text/javascript">
+
+		function tooltipChart() {
+			
+			// Tooltip Attributes
+			// Tooltip width and height
+	        var width = 200,
+	            height = 80;
+
+	        // Tooltip Offset
+	        var offset = {x: 20, y: 0};
+
+	        // Default Accessors for the Title and Content
+	        var title = function(d) { return d.title; };
+	        var content = function(d) { return d.content; };
+
+			// Charting function
+			function chart(selection) {
+				selection.each(function(d) {
+					d3.select(this)
+						.on('mouseover.tooltip', create)
+						.on('mousemove.tooltip', move)
+						.on('mouseout.tooltip', remove);
+				});
+			}
+
+			// Accessor methods
+			var init = function(selection) {
+				selection.each(function(data) {
+					// Create and configure the tooltip container
+					d3.select(this)
+						.attr("class", "tooltip-container")
+						.style("width", width + "px")
+
+						// Tooltip Title
+						d3.select(this).append("p")
+							.attr("class", "tooltip-title")
+							.text(title(data));
+
+						// Tooltip Content
+						d3.select(this).append("p")
+							.attr("class", "tooltip-content")
+							.text(content(data));
+				});
+			}
+
+			var create = function(data) {
+				// Create the tooltip container div
+				var tooltipContainer = d3.select("body").append("div")
+					.datum(data)
+					.attr("class", "tooltip-container")
+					.call(init);
+
+				tooltipContainer
+					.style("left", (d3.event.pageX + offset.x) + "px")
+					.style("top", (d3.event.pageY + offset.y) + "px");
+			}
+
+			// Move the tooltip to follow the pointer
+			var move = function() {
+				// Select the tooltip and move it following the pointer
+				d3.select("body").select("div.tooltip-container")
+					.style("left", (d3.event.pageX + offset.x) + "px")
+					.style("top", (d3.event.pageY + offset.y) + "px");
+			}
+
+			var remove = function() {
+				d3.select("div.tooltip-container").remove();
+			}
+
+			// Accessor for the Title Function
+	        chart.title = function(titleAccessor) {
+	            if (!arguments.length) { return title; }
+	            title = titleAccessor;
+	            return chart;
+	        };
+
+	        // Accessor for the Content Function
+	        chart.content = function(contentAccessor) {
+	            if (!arguments.length) { return content; }
+	            content = contentAccessor;
+	            return chart;
+	        };
+
+			return chart;
+		}
+
+		function fruitChart() {
+
+			// Attributes
+			var width = 600;
+			var height = 120;
+
+			var radiusExtent = [0, 40];
+
+			var tooltip = tooltipChart()
+				.title(function(d) {
+					return d.name;
+				})
+				.content(function(d) {
+					return d.description;
+				});
+
+			// Chart
+			function chart(selection) {
+				selection.each(function(data) {
+
+					// Select the container div and create the svg selection
+					var div = d3.select(this);
+					var svg = div.selectAll("svg").data([data]);
+
+					// Append the svg element on enter
+					svg.enter().append("svg");
+
+					// Update the width and height of the svg element
+					svg.attr("width", width)
+						.attr("height", height);
+
+					// Create a scale for the horizontal position
+					var xScale = d3.scale.ordinal()
+						.domain(d3.range(data.length))
+						.rangePoints([0, width], 1);
+
+					// Maximum number of calories
+					var maxCal = d3.max(data, function(d) {
+						return d.calories;
+					});
+
+					// Create the radius scale
+					var rScale = d3.scale.sqrt()
+						.domain([0, maxCal])
+						.rangeRound(radiusExtent);
+
+					// Create a container group for each circle
+					var gItems = svg.selectAll("g.fruit-item").data(data)
+						.enter()
+						.append("g")
+						.attr("class", "fruit-item")
+						.attr("transform", function(d, i) {
+							return "translate(" + [xScale(i), height / 2] + ")";
+						});
+
+					// Add a circle to the item group
+					var circles = gItems.append("circle")
+						.attr("r", function(d) {
+							return rScale(d.calories);
+						})
+						.attr("fill", function(d) {
+							return d.color;
+						});
+
+					// Add the fruit name
+					var labelName = gItems.append("text")
+						.attr("text-anchor", "middle")
+						.attr("font-size", "12px")
+						.text(function(d) {
+							return d.name;
+						});
+
+					// Add the calories label
+					var labelKCal = gItems.append("text")
+						.attr("text-anchor", "middle")
+						.attr("font-size", "10px")
+						.attr("y", 12)
+						.text(function(d) {
+							return d.calories + " kcal";
+						});			
+
+					// We add listeners to the mouseover and mouseout events circles
+					circles
+						.on("mouseover", function(d) {
+							d3.select(this)
+								.attr("stroke-width", 3)
+								// the d3.rgb function constructs an rgb colour from the hex string; brighter() returns a brighter version of the colour
+								.attr("fill", d3.rgb(d.color).brighter())
+								.attr("stroke", d.color);
+						})
+						.on("mouseout", function(d) {
+							d3.select(this)
+								.attr("stroke-width", 0)
+								.attr("fill", d.color);
+						})
+						.call(tooltip);
+
+				}); 
+			}
+
+			return chart;
+		}
+
+		// Load and parse the json data
+		d3.json("fruits.json", function(error, root) {
+			
+			if (error) {
+				console.error("Error getting or parsing data.");
+				throw error;
+			}
+
+			// Create and configure the chart
+			var fruits = fruitChart();
+
+			d3.select("div#chart")
+				.data([root.data])
+				.call(fruits);
+
+		});
+
+		</script>
+	</body>
+</html>

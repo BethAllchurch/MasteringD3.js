@@ -1,0 +1,305 @@
+<html>
+	<head>
+		<title>Creating Visualizations without SVG</title>
+		 <style>
+
+	    </style>
+	</head>
+	<body>
+		
+		<div id="chart"></div>	
+		<div id="legend"></div>
+
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+		<script type="text/javascript">
+
+		function legendChart() {
+
+			// Chart properties
+			var width = 200;
+			var cScale = d3.scale.category20();
+			var label = function(d) {
+				return " " + d;
+			}
+
+			// Charting function
+			function chart(selection) {
+
+				selection.each(function(data) {
+
+					// Select the container element and set its attributes
+					var containerDiv = d3.select(this)
+						.style("width", width + "px");
+
+					// Add the label 'Legend' on enter
+					containerDiv.selectAll("p.legend-title")
+						.data([data])
+						.enter().append("p")
+						.attr("class", "legend-title")
+						.text("Legend");
+
+					// Add a div for each data item
+					var itemDiv = containerDiv.selectAll("div.item")
+						.data(data)
+						.enter().append("div")
+						.attr("class", "item");
+
+					var itemP = itemDiv.append("p")
+						.style("line-height", "0.8em")
+						.style("font-size", "11px");
+
+					itemP.append("span").text("..")
+						.style("color", function(d) {
+							return cScale(d.name);
+						})
+						.style("background", function(d) {
+							return cScale(d.name);
+						});
+
+					itemP.append("span")
+						.text(label);
+
+				});
+
+			}
+
+			// Accessor methods
+			chart.colorScale = function(value) {
+				if (!arguments.length) {
+					return cScale;
+				}
+				cScale = value;
+				return chart;
+			}
+
+			chart.label = function(value) {
+				if (!arguments.length) {
+					return label;
+				} 
+				label = value;
+				return chart;
+			}
+
+			return chart;
+		}
+
+
+		function bubbleChart() {
+
+			var width = 700;
+			var height = 300;
+
+			var radiusExtent = [10, 50];
+
+			var cScale = d3.scale.category10();
+
+			var name = function(d) {
+				return d.name;
+			}
+
+			var usage = function(d) {
+				return d.usage;
+			}
+
+			var charge = function(d) {
+				return -0.12 * d.r * d.r;
+			}
+
+			function chart(selection) {
+
+				selection.each(function(data) {
+
+					var containerDiv = d3.select(this);			
+
+					data.sort(function(a, b) {
+						return usage(b) - usage(a);
+					});
+
+					// Compute unique browser names
+					var nameList = data.map(name);
+					var uniqueNames = d3.set(nameList).values(); // use d3.set to discard duplicate names
+
+					// Set the scale domain
+					cScale.domain(uniqueNames);
+
+					// Create the radius scale
+					var rScale = d3.scale.sqrt()
+						.domain(d3.extent(data, usage))
+						.range(radiusExtent);
+
+					// Add the radius to each item, to compute it only once
+					data.forEach(function(d) {
+						d.r = rScale(usage(d));
+					});
+
+					// Force layout - method to distribute elements in a given area, which avoids
+					// overlap between the elements and keeps them in the drawing area.
+					var force = d3.layout.force()
+						.nodes(data)
+						.links([])
+						.size([width, height])
+						// The charge method allows us to set the charge strength for each node
+						.charge(charge)
+						// Start the force simulation
+						.start(); // appends index, weight, x, y, px, & py properties to the items
+
+					containerDiv
+						.style("position", "relative")
+						.style("width", width + "px")
+						.style("height", height + "px")
+						.style("padding", 0)
+						.style("background-color", "#eeeeec");
+
+					// Create a selection for the bubble divs, bind the data array and set its attributes
+					var bubbleDivs = containerDiv.selectAll("div.bubble")
+						.data(data)
+						.enter()
+						.append("div")
+						.attr("class", "bubble")
+						.style("position", "absolute")
+						.style("width", function(d) {
+							return (2 * d.r) + "px";
+						})
+						.style("height", function(d) {
+							return (2 * d.r) + "px";
+						})
+						.style("border-radius", function(d) {
+							return d.r + "px";
+						})
+						.style("background-color", function(d) {
+							return cScale(name(d));
+						});
+
+					// The force layout computes the position of nodes in a series of steps or ticks.
+					// Register a listener function for the force tick event, and update the position
+					// of each div on tick
+					force.on("tick", function() {
+						bubbleDivs
+							.style("top", function(d) {
+								return (d.y - d.r) + "px";
+							})
+							.style("left", function(d) {
+								return (d.x - d.r) + "px";
+							});
+					});
+
+				});
+
+			}
+
+			// Accessor methods
+			chart.width = function(value) {
+				if (!arguments.length) {
+					return value;
+				}
+				width = value;
+				return chart;
+			}
+
+			chart.height = function(value) {
+				if (!arguments.length) {
+					return value;
+				}
+				height = value;
+				return chart;
+			}
+
+			chart.radiusExtent = function(value) {
+				if (!arguments.length) {
+					return value;
+				}
+				radiusExtent = value;
+				return chart;
+			}
+
+			chart.usage = function(usageAccessor) {
+				if (!arguments.length) {
+					return value;
+				}
+				usage = usageAccessor;
+				return chart;
+			}
+
+			chart.name = function(nameAccessor) {
+				if (!arguments.length) {
+					return value;
+				}
+				name = nameAccessor;
+				return chart;
+			}
+
+			chart.colorScale = function(colorScale) {
+				if (!arguments.length) {
+					return cScale;
+				}
+				cScale = colorScale;
+				return chart;
+			}
+
+			chart.charge = function(chargeMethod) {
+				if (!arguments.length) {
+					return value;
+				}
+				charge = chargeMethod;
+				return chart;
+			}
+
+			return chart;
+
+		}
+
+		d3.json("browsers.json", function(error, data) {
+
+			if (error) {
+				console.error("Error accessing or parsing the JSON file.");
+				return error;
+			}
+			
+			var chart = bubbleChart();
+			
+
+			d3.select("#chart")	
+				.data([data.values])
+				.call(chart)
+				.style("float", "left");
+
+			var cScale = chart.colorScale();
+
+			var browsers = d3.map();
+
+			data.values.forEach(function(d) {
+				var item = browsers.get(d.name);
+				if (item) {
+					browsers.set(d.name, {
+						name: d.name,
+						usage: d.usage + item.usage
+					});
+				} else {
+					browsers.set(d.name, {
+						name: d.name,
+						usage: d.usage
+					});
+				}
+			});
+
+			var browserItems = browsers.values().sort(function(a, b) {
+				return b.usage - a.usage;
+			});
+
+			var legend = legendChart()
+				.colorScale(cScale)
+				.label(function(d) {
+					return " " + d.name + " (" + d.usage.toFixed(2) + "%)";
+				});
+
+			var legendDiv = d3.select("#legend")
+				.data([browserItems])
+				.call(legend)
+				.style("float", "left")
+				.style("padding", "5px");
+			
+		});
+
+		</script>
+	</body>
+</html>

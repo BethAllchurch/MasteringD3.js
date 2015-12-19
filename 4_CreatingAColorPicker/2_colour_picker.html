@@ -1,0 +1,369 @@
+<html>
+	<head>
+		<title>Colour Picker</title>
+		 <style>
+
+	    </style>
+	</head>
+	<body>
+		
+		<div id="chart"></div>
+
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+		<script type="text/javascript">
+
+		function sliderControl() {
+
+			// Slider attributes
+			var width = 600;
+			var domain = [0, 100];
+
+			var onSlide = function(selection) {}
+
+			// Charting function
+			function chart(selection) {
+				selection.each(function(data) {
+					// Create the slider elements
+					var group = d3.select(this);
+
+					group.selectAll("line")
+						.data([data])
+						.enter().append("line")
+						.call(chart.initLine);
+
+					var handle = group.selectAll("circle")
+						.data([data])
+						.enter().append("circle")
+						.call(chart.initHandle);
+
+					var posScale = d3.scale.linear()
+						.domain(domain)
+						.range([0, width]);
+
+					handle.attr("cx", function(d) {
+						return posScale(d);
+					});
+
+					var drag = d3.behavior.drag().on("drag", moveHandler);
+
+					handle.call(drag);
+
+					function moveHandler(d) {
+						// Compute the future position of the handler
+						var cx = +d3.select(this).attr("cx") + d3.event.dx;
+
+						// Update the position if it's within its valid range
+						if ((0 < cx) && (cx < width)) {
+							// Compute the new value and rebind the data
+							d3.select(this).data([posScale.invert(cx)])
+								.attr("cx", cx)
+								.call(onSlide);
+						}
+					}
+				});
+			}
+
+			chart.initLine = function(selection) {
+				selection
+					.attr("x1", 2)
+					.attr("x2", width - 4)
+					.attr("stroke", "#777")
+					.attr("stroke-width", 4)
+					.attr("stroke-linecap", "round");
+			}
+
+			chart.initHandle = function(selection) {
+				selection
+					.attr("cx", function(d) {
+						return width / 2;
+					})
+					.attr("r", 6)
+					.attr("fill", "#AAA")
+					.attr("stroke", "#222")
+					.attr("stroke-width", 2);
+			}
+
+			// Accessor methods
+			chart.width = function(value) {
+				if (!arguments.length) {
+					return width;
+				}
+				width = value;
+				return chart;
+			}
+
+			chart.domain = function(value) {
+				if (!arguments.length) {
+					return domain;
+				}
+				domain = value;
+				return chart;
+			}
+
+			chart.onSlide = function(onSlideFunction) {
+				if (!arguments.length) {
+					return onSlide;
+				}
+				onSlide = onSlideFunction;
+				return chart;
+			}
+
+			return chart;
+		}
+
+		function labColorPickerWindow() {
+
+			// Chart Attributes
+			var margin = 10;
+			var labelWidth = 20;
+			var sliderWidth = 80;
+			var squareSize = 60;
+			var width = 3 * margin + labelWidth + sliderWidth + squareSize;
+			var height = 2 * margin + squareSize;
+
+			var onColorChange = function(color) {};
+
+			function chart(selection) {
+				selection.each(function(data) {
+					// Select the container div and set its style
+					var divContent = d3.select(this)
+						.style("width", width + "px")
+						.style("height", height + "px")
+						.style("background-color", "#EEE")
+						.style("border", "solid 1px #555");
+
+					// Create the svg element
+					var svg = divContent.selectAll("svg")
+						.data([data])
+						.enter().append("svg")
+						.attr("width", width)
+						.attr("height", height);
+
+					// Add the colour square
+					var colorSquare = svg.append("rect")
+						.attr("x", 2 * margin + sliderWidth + labelWidth)
+						.attr("y", margin)
+						.attr("width", squareSize)
+						.attr("height", squareSize)
+						.attr("fill", data);
+
+					// Update the colour square and invoke onColorChange
+					function updateColor(color) {
+						colorSquare.attr("fill", color);
+						divContent.data([color]).call(onColorChange);
+					}
+
+					// Scale to distribute the sliders vertically
+					var vScale = d3.scale.ordinal()
+						.domain([0, 1, 2])
+						.rangePoints([0, squareSize], 1);
+
+					var sliderL = sliderControl()
+						.domain([0, 100])
+						.width(sliderWidth)
+						.onSlide(function(selection) {
+							selection.each(function(d) {
+								data.l = d;
+								updateColor(data);
+							});
+						});
+
+					var gSliderL = svg.selectAll("g.slider-l")
+						.data([data.l])
+						.enter().append("g")
+						.attr("class", "slider-l")
+						.attr("transform", function() {
+							var dx = margin + labelWidth;
+							var dy = margin + vScale(0);
+							return "translate(" + [dx, dy] + ")";
+						})
+						.call(sliderL);
+
+					var sliderA = sliderControl()
+						.domain([-100, 100])
+						.width(sliderWidth)
+						.onSlide(function(selection) {
+							selection.each(function(d) {
+								data.a = d;
+								updateColor(data);
+							});
+						});
+
+					var gSliderA = svg.selectAll("g.slider-a")
+						.data([data.a])
+						.enter().append("g")
+						.attr("class", "slider-a")
+						.attr("transform", function() {
+							var dx = margin + labelWidth;
+							var dy = margin + vScale(1);
+							return "translate(" + [dx, dy] + ")";
+						})
+						.call(sliderA);
+
+					var sliderB = sliderControl()
+						.domain([-100, 100])
+						.width(sliderWidth)
+						.onSlide(function(selection) {
+							selection.each(function(d) {
+								data.b = d;
+								updateColor(data);
+							});
+						});
+
+					var gSliderB = svg.selectAll("g.slider-b")
+						.data([data.b])
+						.enter().append("g")
+						.attr("class", "slider-b")
+						.attr("transform", function() {
+							var dx = margin + labelWidth;
+							var dy = margin + vScale(2);
+							return "translate(" + [dx, dy] + ")";
+						})
+						.call(sliderB);
+				});
+			}
+
+			chart.onColorChange = function(colorChangeListener) {
+				if (!arguments.length) {
+					return onColorChange;
+				}
+				onColorChange = colorChangeListener;
+				return chart;
+			}
+
+			return chart;
+
+		}
+
+		function labColorPicker() {
+
+			// Selector Attributes
+
+			var width = 30;
+			var height = 10;
+
+			// Default colour
+			var color = d3.lab(100, 0, 0);
+
+			// Charting function
+			function chart(selection) {
+				selection.each(function() {
+					// Create the container group and rectangle
+					var group = d3.select(this);
+					var rect = group.selectAll("rect");
+
+					// Bind the rectangle to the colour item and set its initial attributes
+					rect.data([chart.color()])
+						.enter().append("rect")
+						.attr("width", width)
+						.attr("height", height)
+						.attr("fill", function(d) {
+							return d;
+						})
+						.attr("stroke", "#222")
+						.attr("stroke-width", 1)
+						.on("click", chart.onClick);
+				});
+			}
+
+			chart.onClick = function(d) {
+				// Select the picker rectangle
+				var rect = d3.select(this);
+
+				var div = d3.select("body")
+					.selectAll("div.color-picker")
+					.data([d]);
+
+				// Select the colour picker div and bind the data
+				if (div.empty()) {
+					// Create the colour picker content
+					var content = labColorPickerWindow()
+						.onColorChange(function(selection) {
+							selection.each(function(d) {
+								rect.data([d]).attr("fill", d);
+							});
+						});
+
+					// Create the container div, if it doesn't exist
+					div.enter().append("div")
+						.attr("class", "color-picker")
+						.style("position", "absolute")
+						.style("left", (d3.event.pageX + width) + "px")
+						.style("top", d3.event.pageY + "px")
+						.style("width", "200px")
+						.style("height", "100px")
+						.style("background-color", "#EEE")
+						.call(content);				
+
+						// Bind the data to the rectangle again
+						rect.data([div.datum()]);
+
+				} else {
+					// Update the colour of the rectangle
+					rect.data([div.datum()])
+						.attr("fill", function(d) {
+							return d;
+						});
+					// Remove the colour picker div, if it exists
+					d3.select("body").selectAll("div.color-picker").remove();
+				}
+
+				// Invoke the user callback
+				onColorChange(color);
+			}
+
+			// Accessor functions
+			chart.width = function(value) {
+				if (!arguments.length) {
+					return width;
+				}
+				width = value;
+				return chart;
+			}
+
+			chart.height = function(value) {
+				if (!arguments.length) {
+					return height;
+				}
+				height = value;
+				return chart;
+			}
+
+			chart.color = function(value) {
+				if (!arguments.length) {
+					return color;
+				}
+				color = d3.lab(value);
+				return chart;
+			}
+
+			chart.onColorChange = function(onColorChangeFunction) {
+				if (!arguments.length) {
+					return onColorChange;
+				} 
+				onColorChange = onColorChangeFunction;
+				return chart;
+			}
+
+			return chart;
+		}
+
+		var offset = 30;
+
+		var svg = d3.select("body").append("svg");
+
+		var picker = labColorPicker()
+			.color("#FFF")
+			.onColorChange(function(d) {
+				// Change the background colour of the page
+				d3.select("body").style("background-color", d);
+			});
+
+		// Create a group for the colour picker and translate it
+		var grp = svg.append("g")
+			.attr("transform", "translate(" + [offset, offset] + ")")
+			.call(picker);
+
+		</script>
+	</body>
+</html>
